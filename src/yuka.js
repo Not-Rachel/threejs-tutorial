@@ -70,6 +70,19 @@ const entityManager = new YUKA.EntityManager();
 entityManager.add(car);
 
 const position = [];
+for (let i = 0; i < path._waypoints.length; i++) {
+  const waypoint = path._waypoints[i];
+  position.push(waypoint.x, waypoint.y, waypoint.z);
+}
+
+const lineGeometery = new THREE.BufferGeometry();
+lineGeometery.setAttribute(
+  "position",
+  new THREE.Float32BufferAttribute(position, 3),
+);
+const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
+const lines = new THREE.LineLoop(lineGeometery, lineMaterial);
+scene.add(lines);
 
 const time = new YUKA.Time();
 
