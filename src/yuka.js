@@ -35,20 +35,33 @@ renderer.render(scene, camera);
 renderer.shadowMap.enabled = true;
 
 // AI
-const carMesh = new THREE.Mesh(
-  new THREE.ConeGeometry(0.5, 1.0, 32, 8).rotateX(Math.PI / 2),
-  new THREE.MeshNormalMaterial(),
-);
+const carGeo = new THREE.ConeGeometry(0.5, 1.0, 32, 8).rotateX(Math.PI / 2);
+carGeo.computeBoundingSphere();
+
+const carMesh = new THREE.Mesh(carGeo, new THREE.MeshNormalMaterial());
+
 carMesh.matrixAutoUpdate = false; // let Yuka handle all animations
 scene.add(carMesh);
 
+//Target
+const targetMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(0.25, 32, 32),
+  new THREE.MeshBasicMaterial({ color: "#b9df4a" }),
+);
+scene.add(targetMesh);
+
 const car = new YUKA.Vehicle();
+car.boundingRadius = carGeo.boundingSphere.radius;
 car.setRenderComponent(carMesh, sync);
+car.maxSpeed = 4;
+car.smoother = new YUKA.Smoother(20);
 
 function sync(entity, renderComponent) {
   renderComponent.matrix.copy(entity.worldMatrix);
 }
 
+const target = new YUKA.GameEntity();
+target.setRenderComponent(targetMesh, sync);
 //PATH
 const path = new YUKA.Path();
 path.add(new YUKA.Vector3(-4, 0, 4));
@@ -59,6 +72,7 @@ path.add(new YUKA.Vector3(4, 0, -4));
 path.add(new YUKA.Vector3(6, 0, 0));
 path.add(new YUKA.Vector3(4, 0, 4));
 path.add(new YUKA.Vector3(0, 0, 6));
+path.loop = true;
 
 //Follow
 car.position.copy(path.current());
@@ -66,8 +80,32 @@ car.position.copy(path.current());
 const followPathBehavior = new YUKA.FollowPathBehavior(path, 0.5); //When vehical should change direction smoothly
 car.steering.add(followPathBehavior);
 
+const onPathBehavior = new YUKA.OnPathBehavior(path);
+onPathBehavior.radius = 8;
+car.steering.add(onPathBehavior);
+
 const entityManager = new YUKA.EntityManager();
 entityManager.add(car);
+entityManager.add(target);
+
+const boxGeo = new THREE.BoxGeometry(0.5, 2, 0.5, 3, 3, 3);
+boxGeo.computeBoundingSphere();
+const obstacleMesh = new THREE.Mesh(
+  boxGeo,
+  new THREE.MeshBasicMaterial({ color: "#9e4028", wireframe: true }),
+);
+scene.add(obstacleMesh);
+
+const obstacle = new YUKA.GameEntity();
+obstacle.boundingRadius = boxGeo.boundingSphere.radius;
+//obstacle.setRenderComponent(obstacleMesh);
+obstacle.position.copy(obstacleMesh.position);
+entityManager.add(obstacle);
+
+const obstacles = [obstacle];
+
+const obstacleAvoidanceBehavior = new YUKA.ObstacleAvoidanceBehavior(obstacles);
+car.steering.add(obstacleAvoidanceBehavior);
 
 const position = [];
 for (let i = 0; i < path._waypoints.length; i++) {
